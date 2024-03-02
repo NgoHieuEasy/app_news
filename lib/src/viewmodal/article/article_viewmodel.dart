@@ -12,9 +12,18 @@ class ArticleViewModel extends ChangeNotifier {
   List<Article> relateArticleList = [];
   List<Article> historyArticleList = [];
   List<Article> singleArticleList = [];
+  List<int> articleIdList = [];
   bool isLoading = false;
   ArticleViewModel() {
     // getArticleList();
+  }
+
+  getArticleIdList(List<Article> articleList) {
+    articleIdList = [];
+
+    articleList.forEach((element) {
+      articleIdList.add(element.id!);
+    });
   }
 
   getSingleArticle(int id) async {
@@ -42,15 +51,17 @@ class ArticleViewModel extends ChangeNotifier {
 
   getArticleList(int page, bool isPag) async {
     String base_url = "/article/get-list?page=$page";
-    log(page.toString());
+
     var response = await ApiProvider().get(base_url);
 
     if (isPag) {
       articleList.addAll(
           response.map<Article>((item) => Article.fromJson(item)).toList());
+      getArticleIdList(articleList);
     } else {
       articleList =
           response.map<Article>((item) => Article.fromJson(item)).toList();
+      getArticleIdList(articleList);
     }
 
     notifyListeners();
@@ -62,6 +73,7 @@ class ArticleViewModel extends ChangeNotifier {
 
     searchArticleList =
         response.map<Article>((item) => Article.fromJson(item)).toList();
+    getArticleIdList(searchArticleList);
 
     notifyListeners();
   }
@@ -72,6 +84,7 @@ class ArticleViewModel extends ChangeNotifier {
 
     relateArticleList =
         response.map<Article>((item) => Article.fromJson(item)).toList();
+    getArticleIdList(relateArticleList);
     notifyListeners();
   }
 
@@ -81,6 +94,7 @@ class ArticleViewModel extends ChangeNotifier {
 
     historyArticleList =
         response.map<Article>((item) => Article.fromJson(item)).toList();
+    getArticleIdList(historyArticleList);
     notifyListeners();
   }
 
@@ -91,6 +105,7 @@ class ArticleViewModel extends ChangeNotifier {
     setLoading(false);
     searchArticleList =
         response.map<Article>((item) => Article.fromJson(item)).toList();
+    getArticleIdList(searchArticleList);
 
     notifyListeners();
   }

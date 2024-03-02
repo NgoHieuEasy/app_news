@@ -21,7 +21,10 @@ import 'package:flutter_file_downloader/flutter_file_downloader.dart';
 
 class ArticleDetailPage extends StatefulWidget {
   final Map dataMap;
-  const ArticleDetailPage({super.key, required this.dataMap});
+  ArticleDetailPage({
+    super.key,
+    required this.dataMap,
+  });
 
   @override
   State<ArticleDetailPage> createState() => _ArticleDetailPageState();
@@ -35,6 +38,8 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
   Duration duration = Duration.zero;
   Duration position = Duration.zero;
 
+  int audioIndex = 0;
+
   SpeechToText speechToText = SpeechToText();
   FlutterTts flutterTts = FlutterTts();
   List<PopupMenuItem<String>>? speedItems;
@@ -46,8 +51,9 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
   String mp3Url5 = "";
   String link_share = "";
   String link_Copy = "";
-
   String mp3Main = "";
+
+  List<int> articleIdList = [];
 
   List<Map<String, dynamic>> optionList = [
     {"id": 0, "icon": Icons.share, "text": "Chia sẻ"},
@@ -56,11 +62,11 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
   ];
 
   List<Map<String, dynamic>> voiceList = [
-    {"id": 0, "name": "Giọng đọc 1"},
-    {"id": 1, "name": "Giọng đọc 2"},
-    {"id": 2, "name": "Giọng đọc 3"},
-    {"id": 3, "name": "Giọng đọc 4"},
-    {"id": 4, "name": "Giọng đọc 5"}
+    {"id": 0, "name": "Giọng Ngọc Huyền"},
+    {"id": 1, "name": "Giọng Anh Khôi"},
+    {"id": 2, "name": "Giọng Mạnh Dũng"},
+    {"id": 3, "name": "Giọng Thảo Trinh"},
+    {"id": 4, "name": "Giọng Trung Kiên"}
   ];
 
   @override
@@ -68,7 +74,7 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     if (mounted) {
       dataMap = widget.dataMap;
       initSpeech();
-      getSingleArticle();
+      getSingleArticle(widget.dataMap['id']);
       speedItems = optionList.map<PopupMenuItem<String>>((e) {
         return PopupMenuItem<String>(
           value: e["text"],
@@ -105,10 +111,36 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
           });
         }
       });
-      playAudio();
+      player.onPlayerComplete.listen((event) {
+        if (audioIndex < articleIdList.length) {
+          audioIndex++;
+          getSingleArticle(articleIdList[audioIndex]);
+          log("Audio đã hoàn thành phát11111.$mp3Url2");
+
+          playAudio(mp3Url2);
+        }
+      });
+      mp3Main = "$URL_MP3${dataMap['audioUrl']}";
+      playAudio(mp3Main);
       getRelateArticle();
+      getArticleIdList();
     }
     super.initState();
+  }
+
+  getArticleIdList() {
+    final articleProvider =
+        Provider.of<ArticleViewModel>(context, listen: false);
+
+    int index = articleProvider.articleIdList.indexOf(widget.dataMap['id']);
+
+    if (index != -1) {
+      setState(() {
+        articleIdList = articleProvider.articleIdList.sublist(index);
+      });
+    } else {
+      print("Không tìm thấy phần tử có giá trị trong mảng.");
+    }
   }
 
   void initSpeech() async {
@@ -116,10 +148,10 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     setState(() {});
   }
 
-  getSingleArticle() {
+  getSingleArticle(int id) {
     final articleProvider =
         Provider.of<ArticleViewModel>(context, listen: false);
-    articleProvider.getSingleArticle(widget.dataMap['id']);
+    articleProvider.getSingleArticle(id);
   }
 
   getRelateArticle() {
@@ -128,12 +160,14 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     articleProvider.getRelateArticleList(widget.dataMap['catId']);
   }
 
-  Future<void> playAudio() async {
+  Future<void> playAudio(String mp3) async {
     setState(() {
       playLoading = true;
     });
-    mp3Main = "$URL_MP3${dataMap['audioUrl']}";
-    await player.play(UrlSource(mp3Main));
+
+    log("Audio đã hoàn thành phát2222.$mp3");
+
+    await player.play(UrlSource(mp3));
   }
 
   Future<void> forward() async {
@@ -302,6 +336,12 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
                       child: Icon(Icons.more_vert)),
                 )
               : Container(),
+          GestureDetector(
+            onTap: () {
+              player.setPlaybackRate(2);
+            },
+            child: Icon(Icons.add),
+          )
         ],
       ),
       body: (articleProvider.singleArticleList.isNotEmpty)
@@ -324,6 +364,8 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
                             mp3Url5 = "$URL_MP3${item.mp3Url5}";
                             link_share = item.crawlUrl!;
                             link_Copy = item.textContent!;
+
+                            log('vo day bao nhiêu lan');
 
                             return Column(
                               children: [

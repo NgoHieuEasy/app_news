@@ -24,12 +24,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int page = 0;
   bool isLoading = false;
+  List<int> articleIdList = [];
   final RefreshController _refreshController =
       RefreshController(initialRefresh: false);
 
   @override
   void initState() {
-    fetchArticle(); // TODO: implement initState
+    fetchArticle();
     super.initState();
   }
 
@@ -104,6 +105,8 @@ class _HomePageState extends State<HomePage> {
                   itemCount: articleProvider.articleList.length,
                   itemBuilder: (context, index) {
                     var item = articleProvider.articleList[index];
+
+                    articleIdList.add(item.id!);
                     return ArticleItem(
                       item: item,
                       heroId: 111,

@@ -10,7 +10,11 @@ import 'package:intl/intl.dart';
 class ArticleItem extends StatefulWidget {
   final dynamic item;
   final int heroId;
-  const ArticleItem({super.key, required this.item, required this.heroId});
+  ArticleItem({
+    super.key,
+    required this.item,
+    required this.heroId,
+  });
 
   @override
   State<ArticleItem> createState() => _ArticleItemState();
