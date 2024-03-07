@@ -21,9 +21,10 @@ class _ArticleListPageState extends State<ArticleListPage> {
   SpeechToText speechToText = SpeechToText();
   FlutterTts flutterTts = FlutterTts();
 // getListByCategoryId
+  List<int> articleIdList = [];
   void initState() {
     super.initState();
-
+    fetchArticle();
     initSpeech();
   }
 
@@ -32,10 +33,11 @@ class _ArticleListPageState extends State<ArticleListPage> {
     UtilityMethods.speak(flutterTts, "Bài báo ${widget.name}");
   }
 
-  fetchArticle() {
+  fetchArticle() async {
     final categoryProvider =
         Provider.of<CategoriesViewModel>(context, listen: false);
-    categoryProvider.getListByCategoryId(widget.id);
+    await categoryProvider.getListByCategoryId(widget.id);
+    articleIdList = categoryProvider.articleIdList;
   }
 
   @override
@@ -70,9 +72,7 @@ class _ArticleListPageState extends State<ArticleListPage> {
                 itemBuilder: (context, index) {
                   var item = categoryProvider.articleList[index];
                   return ArticleItem(
-                    item: item,
-                    heroId: 444,
-                  );
+                      item: item, heroId: 444, articleIdList: articleIdList);
                 },
               ),
             )

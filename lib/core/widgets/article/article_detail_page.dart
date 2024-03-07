@@ -21,9 +21,11 @@ import 'package:flutter_file_downloader/flutter_file_downloader.dart';
 
 class ArticleDetailPage extends StatefulWidget {
   final Map dataMap;
+  final List<int> articleIdList;
   ArticleDetailPage({
     super.key,
     required this.dataMap,
+    required this.articleIdList,
   });
 
   @override
@@ -61,12 +63,11 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     {"id": 2, "icon": Icons.copy, "text": "Sao chép"}
   ];
 
-  List<Map<String, dynamic>> voiceList = [
-    {"id": 0, "name": "Giọng Ngọc Huyền"},
-    {"id": 1, "name": "Giọng Anh Khôi"},
-    {"id": 2, "name": "Giọng Mạnh Dũng"},
-    {"id": 3, "name": "Giọng Thảo Trinh"},
-    {"id": 4, "name": "Giọng Trung Kiên"}
+  List<Map<String, dynamic>> speedList = [
+    {"id": 0, "speed": "x0.5 chậm"},
+    {"id": 1, "speed": "x1 bình thường"},
+    {"id": 2, "speed": "x1.5 nhanh"},
+    {"id": 3, "speed": "x2 rất nhanh"},
   ];
 
   @override
@@ -112,16 +113,17 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
         }
       });
       player.onPlayerComplete.listen((event) {
-        if (audioIndex < articleIdList.length) {
-          audioIndex++;
-          getSingleArticle(articleIdList[audioIndex]);
-          log("Audio đã hoàn thành phát11111.$mp3Url2");
+        if (audioIndex < articleIdList.length) {}
+        final articleProvider =
+            Provider.of<ArticleViewModel>(context, listen: false);
 
-          playAudio(mp3Url2);
-        }
+        audioIndex++;
+        getSingleArticle(articleIdList[audioIndex]);
+        String mp3 =
+            "$URL_TAKE_MP3${articleProvider.articleList[audioIndex].mp3Url1}";
+        playAudio(mp3);
       });
-      mp3Main = "$URL_MP3${dataMap['audioUrl']}";
-      playAudio(mp3Main);
+
       getRelateArticle();
       getArticleIdList();
     }
@@ -129,17 +131,14 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
   }
 
   getArticleIdList() {
-    final articleProvider =
-        Provider.of<ArticleViewModel>(context, listen: false);
-
-    int index = articleProvider.articleIdList.indexOf(widget.dataMap['id']);
-
+    int index = widget.articleIdList.indexOf(widget.dataMap['id']);
     if (index != -1) {
+      List<int> articleIdListTemp = List<int>.from(widget.articleIdList);
       setState(() {
-        articleIdList = articleProvider.articleIdList.sublist(index);
+        articleIdList = articleIdListTemp.sublist(index);
       });
     } else {
-      print("Không tìm thấy phần tử có giá trị trong mảng.");
+      log("Không tìm thấy phần tử có giá trị trong mảng.");
     }
   }
 
@@ -148,10 +147,11 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     setState(() {});
   }
 
-  getSingleArticle(int id) {
+  getSingleArticle(int id) async {
     final articleProvider =
         Provider.of<ArticleViewModel>(context, listen: false);
-    articleProvider.getSingleArticle(id);
+    await articleProvider.getSingleArticle(id);
+    playAudio("$URL_TAKE_MP3${articleProvider.singleArticleList[0].mp3Url1}");
   }
 
   getRelateArticle() {
@@ -161,13 +161,12 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
   }
 
   Future<void> playAudio(String mp3) async {
-    setState(() {
-      playLoading = true;
-    });
-
-    log("Audio đã hoàn thành phát2222.$mp3");
-
-    await player.play(UrlSource(mp3));
+    if (mounted) {
+      setState(() {
+        playLoading = true;
+      });
+      await player.play(UrlSource(mp3));
+    }
   }
 
   Future<void> forward() async {
@@ -188,31 +187,6 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     player.seek(newPosition);
 
     await player.resume();
-  }
-
-  void handleSelectedVoiceId(
-      int selectedId, Map<String, dynamic> dataVoice) async {
-    switch (selectedId) {
-      case 0:
-        await player.play(UrlSource(mp3Main));
-        break;
-      case 1:
-        mp3Main = dataVoice['audio2'];
-        await player.play(UrlSource(mp3Main));
-        break;
-      case 2:
-        mp3Main = dataVoice['audio3'];
-        await player.play(UrlSource(mp3Main));
-        break;
-      case 3:
-        mp3Main = dataVoice['audio4'];
-        await player.play(UrlSource(mp3Main));
-        break;
-      default:
-        mp3Main = dataVoice['audio5'];
-        await player.play(UrlSource(mp3Main));
-        break;
-    }
   }
 
   void showPopupMenu(
@@ -267,13 +241,15 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     return "${dir.path}/$filename";
   }
 
-  void showVoice(BuildContext context, TapDownDetails tapDownDetails,
-      Map<String, dynamic> dataVoice) {
+  void showSpeed(
+    BuildContext context,
+    TapDownDetails tapDownDetails,
+  ) {
     List<PopupMenuEntry<Map<String, dynamic>>> popupMenuEntries =
-        voiceList.map((voice) {
+        speedList.map((voice) {
       return PopupMenuItem<Map<String, dynamic>>(
         value: voice,
-        child: Text(voice['name']),
+        child: Text(voice['speed']),
       );
     }).toList();
 
@@ -286,10 +262,24 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
         tapDownDetails.globalPosition.dy + 100,
       ),
       items: popupMenuEntries,
-    ).then((value) {
+    ).then((value) async {
       if (value != null) {
         int selectedId = value['id'];
-        handleSelectedVoiceId(selectedId, dataVoice);
+        switch (selectedId) {
+          case 0:
+            player.setPlaybackRate(0.5);
+            break;
+          case 1:
+            player.setPlaybackRate(1);
+            break;
+          case 2:
+            player.setPlaybackRate(1.5);
+            break;
+
+          default:
+            player.setPlaybackRate(2);
+            break;
+        }
       }
     });
   }
@@ -336,11 +326,19 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
                       child: Icon(Icons.more_vert)),
                 )
               : Container(),
-          GestureDetector(
-            onTap: () {
-              player.setPlaybackRate(2);
-            },
-            child: Icon(Icons.add),
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: GestureDetector(
+              onTapDown: (TapDownDetails tapDownDetails) async {
+                Map optionMap = {
+                  "share": link_share,
+                  "download": mp3Url1,
+                  "copy": link_Copy,
+                };
+                showSpeed(context, tapDownDetails);
+              },
+              child: Icon(Icons.speed_sharp),
+            ),
           )
         ],
       ),
@@ -357,15 +355,14 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
                         Wrap(
                           children: articleProvider.singleArticleList
                               .map<Widget>((item) {
-                            mp3Url1 = "$URL_MP3${item.mp3Url1}";
-                            mp3Url2 = "$URL_MP3${item.mp3Url2}";
-                            mp3Url3 = "$URL_MP3${item.mp3Url3}";
-                            mp3Url4 = "$URL_MP3${item.mp3Url4}";
-                            mp3Url5 = "$URL_MP3${item.mp3Url5}";
+                            mp3Url1 = "$URL_TAKE_MP3${item.mp3Url1}";
+
+                            mp3Url2 = "$URL_TAKE_MP3${item.mp3Url2}";
+                            mp3Url3 = "$URL_TAKE_MP3${item.mp3Url3}";
+                            mp3Url4 = "$URL_TAKE_MP3${item.mp3Url4}";
+                            mp3Url5 = "$URL_TAKE_MP3${item.mp3Url5}";
                             link_share = item.crawlUrl!;
                             link_Copy = item.textContent!;
-
-                            log('vo day bao nhiêu lan');
 
                             return Column(
                               children: [
@@ -416,9 +413,10 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
                                         return Padding(
                                           padding: EdgeInsets.all(8.0),
                                           child: ArticleItem(
-                                            heroId: 555,
-                                            item: news,
-                                          ),
+                                              heroId: 555,
+                                              item: news,
+                                              articleIdList:
+                                                  widget.articleIdList),
                                         );
                                       }).toList(),
                                     )
@@ -466,44 +464,20 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     String mp3Url4,
     String mp3Url5,
   ) {
-    return Row(
-      children: [
-        Expanded(
-          child: Slider(
-              min: 0,
-              max: duration.inSeconds.toDouble(),
-              value: position.inSeconds.toDouble(),
-              thumbColor: AppThemePreferences.secondPrimaryColor,
-              activeColor: AppThemePreferences.secondPrimaryColor,
-              inactiveColor: AppThemePreferences.primaryColor,
-              secondaryActiveColor: AppThemePreferences.secondPrimaryColor,
-              onChanged: (value) async {
-                final position = Duration(seconds: value.toInt());
-                await player.seek(position);
+    return Slider(
+        min: 0,
+        max: duration.inSeconds.toDouble(),
+        value: position.inSeconds.toDouble(),
+        thumbColor: AppThemePreferences.secondPrimaryColor,
+        activeColor: AppThemePreferences.secondPrimaryColor,
+        inactiveColor: AppThemePreferences.primaryColor,
+        secondaryActiveColor: AppThemePreferences.secondPrimaryColor,
+        onChanged: (value) async {
+          final position = Duration(seconds: value.toInt());
+          await player.seek(position);
 
-                await player.resume();
-              }),
-        ),
-        InkWell(
-          onTapDown: (TapDownDetails tapDownDetails) async {
-            UtilityMethods.speak(flutterTts, "Chọn giọng đọc");
-            Map<String, dynamic> data = {
-              'audio1': mp3Url1,
-              'audio2': mp3Url2,
-              'audio3': mp3Url3,
-              'audio4': mp3Url4,
-              'audio5': mp3Url5,
-            };
-
-            showVoice(context, tapDownDetails, data);
-          },
-          child: Icon(
-            Icons.voice_chat,
-            color: AppThemePreferences.secondPrimaryColor,
-          ),
-        )
-      ],
-    );
+          await player.resume();
+        });
   }
 
   Widget playAudioWidget() {

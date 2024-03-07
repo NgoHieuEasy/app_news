@@ -31,6 +31,7 @@ class ApiProvider {
   }
 
   post(String url, Map<String, dynamic> data) async {
+    // final token = HiveStorageManager.readUserTokenInfo() ?? '';
     try {
       Options options = Options(
         headers: {
@@ -42,6 +43,30 @@ class ApiProvider {
 
       final response =
           await dio.post(URL_BASE + url, data: data, options: options);
+      if (response.statusCode == STATUS_SUCCESS) {
+        return response;
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  post_voide(String url, Map<String, dynamic> data) async {
+    final token = HiveStorageManager.readUserTokenInfo() ?? '';
+    log(token.toString());
+    try {
+      Options options = Options(
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      log(URL_BASE + url);
+
+      final response =
+          await dio.post(URL_MP3 + url, data: data, options: options);
       if (response.statusCode == STATUS_SUCCESS) {
         return response;
       }

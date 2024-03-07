@@ -34,10 +34,13 @@ class _HomePageState extends State<HomePage> {
     super.initState();
   }
 
-  fetchArticle() {
+  fetchArticle() async {
     final articleProvider =
         Provider.of<ArticleViewModel>(context, listen: false);
-    articleProvider.getArticleList(page, false);
+    await articleProvider.getArticleList(page, false);
+    setState(() {
+      articleIdList = articleProvider.articleIdList;
+    });
   }
 
   // getAllData() {
@@ -86,7 +89,9 @@ class _HomePageState extends State<HomePage> {
                   articleProvider.getArticleList(page, true).then((_) {
                     setState(() {
                       isLoading = false;
+                      articleIdList = articleProvider.articleIdList;
                     });
+
                     _refreshController.loadComplete();
                   });
                 },
@@ -106,11 +111,8 @@ class _HomePageState extends State<HomePage> {
                   itemBuilder: (context, index) {
                     var item = articleProvider.articleList[index];
 
-                    articleIdList.add(item.id!);
                     return ArticleItem(
-                      item: item,
-                      heroId: 111,
-                    );
+                        item: item, heroId: 111, articleIdList: articleIdList);
                   },
                 ),
               )

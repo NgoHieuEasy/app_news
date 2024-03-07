@@ -10,10 +10,12 @@ import 'package:intl/intl.dart';
 class ArticleItem extends StatefulWidget {
   final dynamic item;
   final int heroId;
-  ArticleItem({
+  final List<int> articleIdList;
+  const ArticleItem({
     super.key,
     required this.item,
     required this.heroId,
+    required this.articleIdList,
   });
 
   @override
@@ -63,6 +65,7 @@ class _ArticleItemState extends State<ArticleItem> {
               navigatorKey.currentState?.push(
                 MaterialPageRoute(
                   builder: (context) => ArticleDetailPage(
+                    articleIdList: widget.articleIdList,
                     dataMap: dataDetail,
                   ),
                 ),

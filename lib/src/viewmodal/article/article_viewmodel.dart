@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
+import 'package:read_paper/core/constants/constants.dart';
 import 'package:read_paper/core/helper/network.dart';
 import 'package:read_paper/src/model/article.dart';
 import 'package:read_paper/src/model/category.dart';
@@ -33,14 +34,23 @@ class ArticleViewModel extends ChangeNotifier {
 
     List<Article> newArticleList = [];
     newArticleList.add(Article.fromJson(response));
-
-    updateSingleArticleList(newArticleList);
-  }
-
-  updateSingleArticleList(List<Article> newArticleList) {
     singleArticleList = newArticleList;
+    log('tới đây thôi');
+    if (singleArticleList[0].mp3Url1 == 'null') {
+      String base_url = "/create_voice";
+      Map<String, dynamic> data = {"article_id": id.toString()};
+      var response = await ApiProvider().post_voide(base_url, data);
+
+      if (response != null && response.data != null) {
+        singleArticleList[0].mp3Url1 = response.data['data'];
+      } else {
+        log("trường hợp phản hồi không hợp lệ");
+      }
+    }
     notifyListeners();
   }
+
+  updateSingleArticleList(List<Article> newArticleList) {}
 
   clearArray() {
     if (singleArticleList.isNotEmpty) {
@@ -57,12 +67,11 @@ class ArticleViewModel extends ChangeNotifier {
     if (isPag) {
       articleList.addAll(
           response.map<Article>((item) => Article.fromJson(item)).toList());
-      getArticleIdList(articleList);
     } else {
       articleList =
           response.map<Article>((item) => Article.fromJson(item)).toList();
-      getArticleIdList(articleList);
     }
+    getArticleIdList(articleList);
 
     notifyListeners();
   }

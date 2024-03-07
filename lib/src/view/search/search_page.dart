@@ -15,6 +15,7 @@ class SearchPage extends StatefulWidget {
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
   bool isLoading = false;
+  List<int> articleIdList = [];
   @override
   void initState() {
     // fetchArticle(); // TODO: implement initState
@@ -66,12 +67,13 @@ class _SearchPageState extends State<SearchPage> {
                   width: 5,
                 ),
                 InkWell(
-                  onTap: () {
+                  onTap: () async {
                     FocusScope.of(context).requestFocus(FocusNode());
-                    articleProvider
+                    await articleProvider
                         .getArticleListByTitle(_searchController.text);
 
                     _searchController.text = '';
+                    articleIdList = articleProvider.articleIdList;
                   },
                   child: Container(
                     height: 40,
@@ -99,9 +101,9 @@ class _SearchPageState extends State<SearchPage> {
                               var item =
                                   articleProvider.searchArticleList[index];
                               return ArticleItem(
-                                item: item,
-                                heroId: 222,
-                              );
+                                  item: item,
+                                  heroId: 222,
+                                  articleIdList: articleIdList);
                             },
                           )
                         : Center(

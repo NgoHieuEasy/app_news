@@ -58,29 +58,86 @@ class _CategoryListPageState extends State<CategoryListPage> {
                 itemCount: parentList.length,
                 itemBuilder: (context, index) {
                   var parentCategory = parentList[index];
+
                   return Card(
-                    child: ExpansionTile(
-                      title: Text(parentCategory.name),
-                      children: childList.map((child) {
-                        if (parentCategory.id.toString() ==
-                            child.parentId.toString()) {
-                          return ListTile(
-                              onTap: () {
-                                navigatorKey.currentState?.push(
-                                  MaterialPageRoute(
-                                    builder: (context) => ArticleListPage(
-                                      id: int.parse(child.id!.toString()),
-                                      name: child.name!,
-                                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: InkWell(
+                            onTap: () {
+                              navigatorKey.currentState?.push(
+                                MaterialPageRoute(
+                                  builder: (context) => ArticleListPage(
+                                    id: int.parse(
+                                        parentCategory.id!.toString()),
+                                    name: parentCategory.name!,
                                   ),
-                                );
-                              },
-                              title: Text(child.name));
-                        }
-                        return Container();
-                      }).toList(),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              parentCategory.name,
+                              style: TextStyle(fontSize: 20),
+                            ),
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: childList.map((child) {
+                            if (parentCategory.id.toString() ==
+                                child.parentId.toString()) {
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.only(left: 20, bottom: 20),
+                                child: InkWell(
+                                  onTap: () {
+                                    navigatorKey.currentState?.push(
+                                      MaterialPageRoute(
+                                        builder: (context) => ArticleListPage(
+                                          id: int.parse(child.id!.toString()),
+                                          name: child.name!,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Text(
+                                    "• ${child.name}",
+                                    style: TextStyle(fontSize: 20),
+                                  ),
+                                ),
+                              );
+                            }
+                            return Container();
+                          }).toList(),
+                        )
+                      ],
                     ),
                   );
+                  // return Card(
+                  //   child: ExpansionTile(
+                  //     title: Text(parentCategory.name),
+                  //     children: childList.map((child) {
+                  //       if (parentCategory.id.toString() ==
+                  //           child.parentId.toString()) {
+                  //         return ListTile(
+                  //             onTap: () {
+                  //               navigatorKey.currentState?.push(
+                  //                 MaterialPageRoute(
+                  //                   builder: (context) => ArticleListPage(
+                  //                     id: int.parse(child.id!.toString()),
+                  //                     name: child.name!,
+                  //                   ),
+                  //                 ),
+                  //               );
+                  //             },
+                  //             title: Text(child.name));
+                  //       }
+                  //       return Container();
+                  //     }).toList(),
+                  //   ),
+                  // );
                 },
               )
             : shimmerLoading());

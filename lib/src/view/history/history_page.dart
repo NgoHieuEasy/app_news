@@ -15,16 +15,18 @@ class HistoryPage extends StatefulWidget {
 class _HistoryPageState extends State<HistoryPage> {
   final RefreshController _refreshController =
       RefreshController(initialRefresh: false);
+  List<int> articleIdList = [];
   @override
   void initState() {
     fetchHistoryArticle(); // TODO: implement initState
     super.initState();
   }
 
-  fetchHistoryArticle() {
+  fetchHistoryArticle() async {
     final articleProvider =
         Provider.of<ArticleViewModel>(context, listen: false);
-    articleProvider.getHistoryArticleList();
+    await articleProvider.getHistoryArticleList();
+    articleIdList = articleProvider.articleIdList;
   }
 
   @override
@@ -56,9 +58,7 @@ class _HistoryPageState extends State<HistoryPage> {
                   itemBuilder: (context, index) {
                     var item = articleProvider.articleList[index];
                     return ArticleItem(
-                      item: item,
-                      heroId: 333,
-                    );
+                        item: item, heroId: 333, articleIdList: articleIdList);
                   },
                 ),
               )

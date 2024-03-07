@@ -10,7 +10,7 @@ class Article {
   final String? categoryName;
   final String? thumb;
   final String? thumbM;
-  final dynamic mp3Url1;
+  dynamic mp3Url1;
   final dynamic mp3Url2;
   final dynamic mp3Url3;
   final dynamic mp3Url4;
@@ -53,7 +53,7 @@ class Article {
         categoryName: json["categoryName"] != null ? json["categoryName"] : "",
         thumb: json["thumb"] != null ? json["thumb"] : "",
         thumbM: json["thumbM"] != null ? json["thumbM"] : "",
-        mp3Url1: json["mp3Url1"] != null ? json["mp3Url1"] : "",
+        mp3Url1: json["mp3Url1"] != null ? json["mp3Url1"] : 'null',
         mp3Url2: json["mp3Url2"] != null ? json["mp3Url2"] : "",
         mp3Url3: json["mp3Url3"] != null ? json["mp3Url3"] : "",
         mp3Url4: json["mp3Url4"] != null ? json["mp3Url4"] : "",
