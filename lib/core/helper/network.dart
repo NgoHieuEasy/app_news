@@ -9,7 +9,7 @@ class ApiProvider {
 
   get(String url) async {
     final token = HiveStorageManager.readUserTokenInfo() ?? '';
-    log(token.toString());
+
     Options options = Options(
       headers: {
         'Accept': 'application/json',
@@ -19,7 +19,7 @@ class ApiProvider {
     );
     try {
       final response = await dio.get(URL_BASE + url, options: options);
-
+      log(response.statusCode.toString());
       if (response.statusCode == STATUS_SUCCESS) {
         return response.data;
       }
