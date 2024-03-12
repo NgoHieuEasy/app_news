@@ -19,7 +19,6 @@ class ApiProvider {
     );
     try {
       final response = await dio.get(URL_BASE + url, options: options);
-      log(response.statusCode.toString());
       if (response.statusCode == STATUS_SUCCESS) {
         return response.data;
       }
@@ -31,13 +30,13 @@ class ApiProvider {
   }
 
   post(String url, Map<String, dynamic> data) async {
-    // final token = HiveStorageManager.readUserTokenInfo() ?? '';
+    final token = HiveStorageManager.readUserTokenInfo() ?? '';
     try {
       Options options = Options(
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          // 'Authorization': 'Bearer $token',
+          'Authorization': 'Bearer $token',
         },
       );
 
@@ -51,7 +50,7 @@ class ApiProvider {
     }
   }
 
-  post_voide(String url, Map<String, dynamic> data) async {
+  post_voice(String url, Map<String, dynamic> data) async {
     final token = HiveStorageManager.readUserTokenInfo() ?? '';
     log(token.toString());
     try {
@@ -63,7 +62,7 @@ class ApiProvider {
         },
       );
 
-      log(URL_BASE + url);
+      log(URL_MP3 + url);
 
       final response =
           await dio.post(URL_MP3 + url, data: data, options: options);

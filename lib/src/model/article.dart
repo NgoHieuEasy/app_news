@@ -53,7 +53,7 @@ class Article {
         categoryName: json["categoryName"] != null ? json["categoryName"] : "",
         thumb: json["thumb"] != null ? json["thumb"] : "",
         thumbM: json["thumbM"] != null ? json["thumbM"] : "",
-        mp3Url1: json["mp3Url1"] != null ? json["mp3Url1"] : 'null',
+        mp3Url1: json["mp3Url1"] != null ? json["mp3Url1"] : "",
         mp3Url2: json["mp3Url2"] != null ? json["mp3Url2"] : "",
         mp3Url3: json["mp3Url3"] != null ? json["mp3Url3"] : "",
         mp3Url4: json["mp3Url4"] != null ? json["mp3Url4"] : "",

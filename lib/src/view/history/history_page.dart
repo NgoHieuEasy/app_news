@@ -15,18 +15,28 @@ class HistoryPage extends StatefulWidget {
 class _HistoryPageState extends State<HistoryPage> {
   final RefreshController _refreshController =
       RefreshController(initialRefresh: false);
+  Future<List<dynamic>>? _futureHistoryArticleList;
   List<int> articleIdList = [];
   @override
   void initState() {
-    fetchHistoryArticle(); // TODO: implement initState
+    loadDataFromApi(); // TODO: implement initState
     super.initState();
   }
 
-  fetchHistoryArticle() async {
+  loadDataFromApi() {
+    setState(() {
+      _futureHistoryArticleList = fetchHistoryArticleInfo();
+    });
+  }
+
+  Future<List<dynamic>> fetchHistoryArticleInfo() async {
     final articleProvider =
         Provider.of<ArticleViewModel>(context, listen: false);
-    await articleProvider.getHistoryArticleList();
-    articleIdList = articleProvider.articleIdList;
+    List<dynamic> articleList = await articleProvider.getHistoryArticleList();
+    if (articleList.isNotEmpty) {
+      return articleList;
+    }
+    return [];
   }
 
   @override
@@ -41,29 +51,49 @@ class _HistoryPageState extends State<HistoryPage> {
           child: Image.asset("assets/logo.png"),
         ),
       ),
-      body: Padding(
-        padding: EdgeInsets.all(10),
-        child: articleProvider.historyArticleList.isNotEmpty
-            ? SmartRefresher(
-                enablePullDown: true,
-                enablePullUp: false,
-                header: const MaterialClassicHeader(),
-                controller: _refreshController,
-                onRefresh: () {
-                  fetchHistoryArticle();
-                  _refreshController.refreshCompleted();
+      body: Stack(children: [
+        SmartRefresher(
+          enablePullDown: true,
+          enablePullUp: true,
+          header: const MaterialClassicHeader(),
+          controller: _refreshController,
+          onRefresh: () {
+            loadDataFromApi();
+            _refreshController.refreshCompleted();
+          },
+          child: buildArticleList(context, _futureHistoryArticleList!),
+        )
+      ]),
+    );
+  }
+
+  Widget buildArticleList(
+      BuildContext context, Future<List<dynamic>> futureArticleList) {
+    return FutureBuilder<List<dynamic>>(
+      future: futureArticleList,
+      builder: (context, dataSnapshot) {
+        if (dataSnapshot.hasData) {
+          if (dataSnapshot.data!.isEmpty) {
+            return Center(
+              child: Text("Không có bài báo nào"),
+            );
+          } else if (dataSnapshot.data!.isNotEmpty) {
+            List articleList = dataSnapshot.data!;
+            return Padding(
+              padding: EdgeInsets.all(10),
+              child: ListView.builder(
+                itemCount: articleList.length,
+                itemBuilder: (context, index) {
+                  var item = articleList[index];
+                  return ArticleItem(
+                      item: item, heroId: 444, articleIdList: articleIdList);
                 },
-                child: ListView.builder(
-                  itemCount: articleProvider.historyArticleList.length,
-                  itemBuilder: (context, index) {
-                    var item = articleProvider.articleList[index];
-                    return ArticleItem(
-                        item: item, heroId: 333, articleIdList: articleIdList);
-                  },
-                ),
-              )
-            : Center(child: Text("Không có dữ liệu")),
-      ),
+              ),
+            );
+          }
+        }
+        return shimmerLoading();
+      },
     );
   }
 

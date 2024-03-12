@@ -14,7 +14,12 @@ import 'dart:developer';
 class ArticleListPage extends StatefulWidget {
   final String name;
   final int id;
-  const ArticleListPage({super.key, required this.id, required this.name});
+  final bool isParent;
+  const ArticleListPage(
+      {super.key,
+      required this.id,
+      required this.name,
+      required this.isParent});
 
   @override
   State<ArticleListPage> createState() => _ArticleListPageState();
@@ -49,7 +54,7 @@ class _ArticleListPageState extends State<ArticleListPage> {
     final categoryProvider =
         Provider.of<CategoriesViewModel>(context, listen: false);
     List<dynamic> articleList =
-        await categoryProvider.getListByCategoryId(widget.id);
+        await categoryProvider.getListByCategoryId(widget.id, widget.isParent);
     if (articleList != null) {
       return articleList;
     }

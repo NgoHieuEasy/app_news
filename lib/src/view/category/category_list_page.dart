@@ -70,6 +70,7 @@ class _CategoryListPageState extends State<CategoryListPage> {
                                 builder: (context) => ArticleListPage(
                                   id: int.parse(parentCategory.id!.toString()),
                                   name: parentCategory.name!,
+                                  isParent: true,
                                 ),
                               ),
                             );
@@ -96,6 +97,7 @@ class _CategoryListPageState extends State<CategoryListPage> {
                                       builder: (context) => ArticleListPage(
                                         id: int.parse(child.id!.toString()),
                                         name: child.name!,
+                                        isParent: false,
                                       ),
                                     ),
                                   );

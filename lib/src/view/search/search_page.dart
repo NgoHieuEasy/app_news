@@ -1,7 +1,11 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:read_paper/core/files/app_preferences/app_preferences.dart';
 import 'package:read_paper/core/widgets/article/article_item.dart';
 import 'package:read_paper/core/data/data.dart';
+import 'package:read_paper/core/widgets/shimmer_effect.dart';
 import 'package:read_paper/src/view/search/widgets/filter_topic_widget.dart';
 import 'package:read_paper/src/viewmodal/article/article_viewmodel.dart';
 
@@ -16,21 +20,44 @@ class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
   bool isLoading = false;
   List<int> articleIdList = [];
+  List<dynamic> articleSearchList = [];
+
   @override
   void initState() {
-    // fetchArticle(); // TODO: implement initState
     super.initState();
   }
 
-  fetchArticle() {
+  loadDataFromApi(String param) async {
+    setState(() {
+      isLoading = true;
+    });
+    List<dynamic> result = await fetchArticleInfo(param);
+    setState(() {
+      articleSearchList = result;
+      isLoading = false;
+    });
+  }
+
+  Future<List<dynamic>> fetchArticleInfo(String param) async {
     final articleProvider =
         Provider.of<ArticleViewModel>(context, listen: false);
-    articleProvider.getSearchArticleList();
+    List<dynamic> articleList =
+        await articleProvider.getArticleListByTitle(param);
+
+    if (articleList.isNotEmpty) {
+      return articleList;
+    }
+    return [];
+  }
+
+  @override
+  void dispose() {
+    articleSearchList.clear();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final articleProvider = Provider.of<ArticleViewModel>(context);
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -68,12 +95,17 @@ class _SearchPageState extends State<SearchPage> {
                 ),
                 InkWell(
                   onTap: () async {
-                    FocusScope.of(context).requestFocus(FocusNode());
-                    await articleProvider
-                        .getArticleListByTitle(_searchController.text);
+                    if (_searchController.text.length > 7) {
+                      FocusScope.of(context).requestFocus(FocusNode());
 
-                    _searchController.text = '';
-                    articleIdList = articleProvider.articleIdList;
+                      loadDataFromApi(_searchController.text);
+                      _searchController.text = '';
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        backgroundColor: AppThemePreferences.primaryColor,
+                        content: const Text("Hãy nhập trên 6 kí tự tìm kiếm"),
+                      ));
+                    }
                   },
                   child: Container(
                     height: 40,
@@ -92,27 +124,38 @@ class _SearchPageState extends State<SearchPage> {
                 ),
               ],
             ),
-            !articleProvider.isLoading
-                ? Expanded(
-                    child: articleProvider.searchArticleList.isNotEmpty
-                        ? ListView.builder(
-                            itemCount: articleProvider.searchArticleList.length,
-                            itemBuilder: (context, index) {
-                              var item =
-                                  articleProvider.searchArticleList[index];
-                              return ArticleItem(
-                                  item: item,
-                                  heroId: 222,
-                                  articleIdList: articleIdList);
-                            },
-                          )
-                        : Center(
-                            child: Text("Nhập tên bài báo bạn muốn tìm kiếm")),
-                  )
-                : Expanded(child: Center(child: CircularProgressIndicator())),
+            buildArticleList()
           ],
         ),
       ),
     );
+  }
+
+  Widget buildArticleList() {
+    return !isLoading
+        ? articleSearchList.isNotEmpty
+            ? Expanded(
+                child: Padding(
+                  padding: EdgeInsets.all(0),
+                  child: ListView.builder(
+                    itemCount: articleSearchList.length,
+                    itemBuilder: (context, index) {
+                      var item = articleSearchList[index];
+                      return ArticleItem(
+                          item: item,
+                          heroId: 444,
+                          articleIdList: articleIdList);
+                    },
+                  ),
+                ),
+              )
+            : Expanded(
+                child: Center(
+                child: Text("Không có bài báo nào"),
+              ))
+        : Expanded(
+            child: Center(
+            child: CircularProgressIndicator(),
+          ));
   }
 }

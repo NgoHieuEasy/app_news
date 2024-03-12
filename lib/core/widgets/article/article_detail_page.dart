@@ -40,22 +40,23 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
   Duration duration = Duration.zero;
   Duration position = Duration.zero;
 
-  int audioIndex = 0;
+  int articleIndex = 0;
 
   SpeechToText speechToText = SpeechToText();
   FlutterTts flutterTts = FlutterTts();
   List<PopupMenuItem<String>>? speedItems;
 
-  String mp3Url1 = "";
-  String mp3Url2 = "";
-  String mp3Url3 = "";
-  String mp3Url4 = "";
-  String mp3Url5 = "";
   String link_share = "";
   String link_Copy = "";
   String mp3Main = "";
 
+  bool isRender = true;
+
   List<int> articleIdList = [];
+  List<dynamic> articleRenderList = [];
+
+  Future<List<dynamic>>? _futureArticleDetail;
+  Future<List<dynamic>>? _futureArticleRelateList;
 
   List<Map<String, dynamic>> optionList = [
     {"id": 0, "icon": Icons.share, "text": "Chia sẻ"},
@@ -75,7 +76,6 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     if (mounted) {
       dataMap = widget.dataMap;
       initSpeech();
-      getSingleArticle(widget.dataMap['id']);
       speedItems = optionList.map<PopupMenuItem<String>>((e) {
         return PopupMenuItem<String>(
           value: e["text"],
@@ -113,33 +113,17 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
         }
       });
       player.onPlayerComplete.listen((event) {
-        if (audioIndex < articleIdList.length) {}
-        final articleProvider =
-            Provider.of<ArticleViewModel>(context, listen: false);
-
-        audioIndex++;
-        getSingleArticle(articleIdList[audioIndex]);
-        String mp3 =
-            "$URL_TAKE_MP3${articleProvider.articleList[audioIndex].mp3Url1}";
-        playAudio(mp3);
+        if (articleIndex < articleIdList.length) {
+          articleIndex++;
+          fetchArticleRender(articleIdList[articleIndex]);
+        }
       });
-
-      getRelateArticle();
-      getArticleIdList();
+      articleIdList =
+          cutArticleIdList(widget.articleIdList, widget.dataMap['id']);
+      loadDataFromApi();
+      // getArticleIdList();
     }
     super.initState();
-  }
-
-  getArticleIdList() {
-    int index = widget.articleIdList.indexOf(widget.dataMap['id']);
-    if (index != -1) {
-      List<int> articleIdListTemp = List<int>.from(widget.articleIdList);
-      setState(() {
-        articleIdList = articleIdListTemp.sublist(index);
-      });
-    } else {
-      log("Không tìm thấy phần tử có giá trị trong mảng.");
-    }
   }
 
   void initSpeech() async {
@@ -147,17 +131,76 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     setState(() {});
   }
 
-  getSingleArticle(int id) async {
-    final articleProvider =
-        Provider.of<ArticleViewModel>(context, listen: false);
-    await articleProvider.getSingleArticle(id);
-    playAudio("$URL_TAKE_MP3${articleProvider.singleArticleList[0].mp3Url1}");
+  loadDataFromApi() {
+    setState(() {
+      _futureArticleDetail = fetchArticleDetailInfo();
+      _futureArticleRelateList = fetchArticleRelateInfo();
+    });
   }
 
-  getRelateArticle() {
+  Future<List<dynamic>> fetchArticleDetailInfo() async {
     final articleProvider =
         Provider.of<ArticleViewModel>(context, listen: false);
-    articleProvider.getRelateArticleList(widget.dataMap['catId']);
+    List<dynamic> articleList =
+        await articleProvider.getSingleArticle(widget.dataMap['id']);
+    if (articleList.isNotEmpty) {
+      mp3Main = "$URL_TAKE_MP3${articleList[0].mp3Url1}";
+      link_Copy = articleList[0].crawlUrl;
+      link_share = articleList[0].crawlUrl;
+      playAudio(mp3Main);
+      articleRenderList = articleList;
+
+      return articleList;
+    }
+    return [];
+  }
+
+  Future<List<dynamic>> fetchArticleRelateInfo() async {
+    final articleProvider =
+        Provider.of<ArticleViewModel>(context, listen: false);
+    List<dynamic> articleList =
+        await articleProvider.getRelateArticleList(widget.dataMap['catId']);
+    if (articleList.isNotEmpty) {
+      return articleList;
+    }
+    return [];
+  }
+
+  fetchArticleRender(int id) async {
+    setState(() {
+      duration = Duration.zero;
+      position = Duration.zero;
+      isRender = false;
+    });
+    final articleProvider =
+        Provider.of<ArticleViewModel>(context, listen: false);
+    List<dynamic> articleList = await articleProvider.getSingleArticle(id);
+
+    if (articleList.isNotEmpty) {
+      setState(() {
+        mp3Main = "$URL_TAKE_MP3${articleList[0].mp3Url1}";
+        link_Copy = articleList[0].crawlUrl;
+        link_share = articleList[0].crawlUrl;
+        articleRenderList = articleList;
+      });
+      playAudio(mp3Main);
+      setState(() {
+        isRender = true;
+      });
+    } else {
+      setState(() {
+        isRender = true;
+      });
+    }
+  }
+
+  List<int> cutArticleIdList(List<int> array, int location) {
+    int index = array.indexOf(location);
+    if (index != -1) {
+      return array.sublist(index);
+    } else {
+      return [];
+    }
   }
 
   Future<void> playAudio(String mp3) async {
@@ -306,19 +349,21 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
               color: AppThemePreferences.closeIconColor,
             ),
             onPressed: () {
-              articleProvider.clearArray();
-              Navigator.of(context).popUntil((route) => route.isFirst);
+              Navigator.of(context).pop();
+
+              // articleProvider.clearArray();
+              // Navigator.of(context).popUntil((route) => route.isFirst);
             }),
         elevation: 0,
         actions: [
-          link_Copy.isNotEmpty
+          isRender
               ? Padding(
                   padding: const EdgeInsets.only(right: 10),
                   child: GestureDetector(
                       onTapDown: (TapDownDetails tapDownDetails) async {
                         Map optionMap = {
                           "share": link_share,
-                          "download": mp3Url1,
+                          "download": mp3Main,
                           "copy": link_Copy,
                         };
                         showPopupMenu(context, optionMap, tapDownDetails);
@@ -326,143 +371,194 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
                       child: Icon(Icons.more_vert)),
                 )
               : Container(),
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: GestureDetector(
-              onTapDown: (TapDownDetails tapDownDetails) async {
-                Map optionMap = {
-                  "share": link_share,
-                  "download": mp3Url1,
-                  "copy": link_Copy,
-                };
-                showSpeed(context, tapDownDetails);
-              },
-              child: Icon(Icons.speed_sharp),
-            ),
-          )
+          isRender
+              ? Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: GestureDetector(
+                    onTapDown: (TapDownDetails tapDownDetails) async {
+                      showSpeed(context, tapDownDetails);
+                    },
+                    child: Icon(Icons.speed_sharp),
+                  ),
+                )
+              : Container(),
         ],
       ),
-      body: (articleProvider.singleArticleList.isNotEmpty)
-          ? Stack(
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(10, 10, 10, 130),
-                  child: SingleChildScrollView(
-                    physics: AlwaysScrollableScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          children: articleProvider.singleArticleList
-                              .map<Widget>((item) {
-                            mp3Url1 = "$URL_TAKE_MP3${item.mp3Url1}";
+      body: buildArticleList(context, _futureArticleDetail!),
+    );
+  }
 
-                            mp3Url2 = "$URL_TAKE_MP3${item.mp3Url2}";
-                            mp3Url3 = "$URL_TAKE_MP3${item.mp3Url3}";
-                            mp3Url4 = "$URL_TAKE_MP3${item.mp3Url4}";
-                            mp3Url5 = "$URL_TAKE_MP3${item.mp3Url5}";
-                            link_share = item.crawlUrl!;
-                            link_Copy = item.textContent!;
-
-                            return Column(
-                              children: [
-                                Text(
-                                  item.title ?? '',
-                                  style: TextStyle(
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 19),
-                                ),
-                                Text(
-                                  item.subTitle ?? '',
-                                ),
-                                SizedBox(
-                                  height: 10,
-                                ),
-                                HtmlWidget(item.htmlContent ?? ''),
-                                SizedBox(
-                                  height: 5,
-                                ),
-                                Text(
-                                  "Nguồn báo : ${item.crawlUrl.toString()}",
-                                  style: TextStyle(fontStyle: FontStyle.italic),
-                                ),
-                                SizedBox(
-                                  height: 10,
-                                ),
-                              ],
-                            );
-                          }).toList(),
-                        ),
-                        Container(
-                          width: MediaQuery.of(context).size.width,
+  Widget buildArticleList(
+      BuildContext context, Future<List<dynamic>> futureArticleList) {
+    return FutureBuilder<List<dynamic>>(
+      future: futureArticleList,
+      builder: (context, dataSnapshot) {
+        if (dataSnapshot.hasData) {
+          if (dataSnapshot.data!.isEmpty) {
+            return Center(
+              child: Text("Không có chi tiết bài báo"),
+            );
+          } else if (dataSnapshot.data!.isNotEmpty) {
+            // List articleList = dataSnapshot.data!;
+            return isRender
+                ? Stack(
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(10, 10, 10, 130),
+                        child: SingleChildScrollView(
+                          physics: AlwaysScrollableScrollPhysics(),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                "Tin liên quan",
-                                style: TextStyle(
-                                    fontSize: 19, fontWeight: FontWeight.bold),
+                              Wrap(
+                                children: articleRenderList.map<Widget>((item) {
+                                  link_share = item.crawlUrl!;
+                                  link_Copy = item.textContent!;
+
+                                  return Column(
+                                    children: [
+                                      Text(
+                                        item.title ?? '',
+                                        style: TextStyle(
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 19),
+                                      ),
+                                      Text(
+                                        item.subTitle ?? '',
+                                      ),
+                                      SizedBox(
+                                        height: 10,
+                                      ),
+                                      HtmlWidget(item.htmlContent ?? ''),
+                                      SizedBox(
+                                        height: 5,
+                                      ),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              "Nguồn báo : ${item.crawlUrl.toString()}",
+                                              style: TextStyle(
+                                                  fontStyle: FontStyle.italic),
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                                right: 10),
+                                            child: GestureDetector(
+                                                onTapDown: (TapDownDetails
+                                                    tapDownDetails) async {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(SnackBar(
+                                                    backgroundColor:
+                                                        AppThemePreferences
+                                                            .primaryColor,
+                                                    content: const Text(
+                                                        "Đã coppy nguồn báo"),
+                                                  ));
+                                                  final value = ClipboardData(
+                                                      text: item.crawlUrl
+                                                          .toString());
+                                                  Clipboard.setData(value);
+                                                },
+                                                child: Icon(Icons.copy)),
+                                          )
+                                        ],
+                                      ),
+                                      SizedBox(
+                                        height: 10,
+                                      ),
+                                    ],
+                                  );
+                                }).toList(),
                               ),
-                              Divider(),
-                              articleProvider.relateArticleList.isNotEmpty
-                                  ? Wrap(
-                                      children: articleProvider
-                                          .relateArticleList
-                                          .map((news) {
-                                        return Padding(
-                                          padding: EdgeInsets.all(8.0),
-                                          child: ArticleItem(
-                                              heroId: 555,
-                                              item: news,
-                                              articleIdList:
-                                                  widget.articleIdList),
-                                        );
-                                      }).toList(),
-                                    )
-                                  : Text("Không có tin liên quan"),
+                              Container(
+                                width: MediaQuery.of(context).size.width,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Tin liên quan",
+                                      style: TextStyle(
+                                          fontSize: 19,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                    Divider(),
+                                    buildArticleRelateList(
+                                        context, _futureArticleRelateList!)
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    color: AppThemePreferences.primaryColorLight,
-                    child: Padding(
-                      padding: const EdgeInsets.all(10.0),
-                      child: Column(
-                        children: [
-                          sliderAudioWidget(
-                              mp3Url1, mp3Url2, mp3Url3, mp3Url4, mp3Url5),
-                          playAudioWidget(),
-                        ],
                       ),
-                    ),
-                  ),
-                ),
-              ],
-            )
-          : Container(
-              height: MediaQuery.of(context).size.height,
-              child: Center(
-                child: CircularProgressIndicator(),
-              ),
-            ),
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          color: AppThemePreferences.primaryColorLight,
+                          child: Padding(
+                            padding: const EdgeInsets.all(10.0),
+                            child: Column(
+                              children: [
+                                sliderAudioWidget(mp3Main),
+                                playAudioWidget(),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Center(
+                    child: CircularProgressIndicator(),
+                  );
+          }
+        }
+        return Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
+  }
+
+  Widget buildArticleRelateList(
+      BuildContext context, Future<List<dynamic>> futureArticleRelateList) {
+    return FutureBuilder<List<dynamic>>(
+      future: futureArticleRelateList,
+      builder: (context, dataSnapshot) {
+        if (dataSnapshot.hasData) {
+          if (dataSnapshot.data!.isEmpty) {
+            return Center(
+              child: Text("Không có bài báo liên quan"),
+            );
+          } else if (dataSnapshot.data!.isNotEmpty) {
+            List articleList = dataSnapshot.data!;
+            return Wrap(
+              children: articleList.map((news) {
+                return Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: ArticleItem(
+                      heroId: 555,
+                      item: news,
+                      articleIdList: widget.articleIdList),
+                );
+              }).toList(),
+            );
+          }
+        }
+        return Center(
+          child: CircularProgressIndicator(),
+        );
+      },
     );
   }
 
   Widget sliderAudioWidget(
     String mp3Url1,
-    String mp3Url2,
-    String mp3Url3,
-    String mp3Url4,
-    String mp3Url5,
   ) {
     return Slider(
         min: 0,

@@ -4,15 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:read_paper/core/widgets/article/article_item.dart';
 import 'package:read_paper/core/widgets/shimmer_effect.dart';
-import 'package:read_paper/core/widgets/shimmer_effect_error_widget.dart';
-import 'package:read_paper/main.dart';
-import 'package:read_paper/core/data/data.dart';
-import 'package:read_paper/src/view/login/login_page.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
-import 'package:fancy_shimmer_image/fancy_shimmer_image.dart';
 import 'package:read_paper/src/viewmodal/article/article_viewmodel.dart';
-import 'package:read_paper/src/viewmodal/categories/categories_viewmodel.dart';
-import 'package:share_plus/share_plus.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -25,99 +18,126 @@ class _HomePageState extends State<HomePage> {
   int page = 0;
   bool isLoading = false;
   List<int> articleIdList = [];
+  List<dynamic> articleAllList = [];
+  Future<List<dynamic>>? _futureArticleList;
   final RefreshController _refreshController =
       RefreshController(initialRefresh: false);
 
   @override
   void initState() {
-    fetchArticle();
+    loadDataFromApi();
     super.initState();
   }
 
-  fetchArticle() async {
-    final articleProvider =
-        Provider.of<ArticleViewModel>(context, listen: false);
-    await articleProvider.getArticleList(page, false);
+  loadDataFromApi() {
     setState(() {
-      articleIdList = articleProvider.articleIdList;
+      _futureArticleList = fetchArticleInfo();
     });
   }
 
-  // getAllData() {
-  //   final categoryProvider = Provider.of<CategoriesViewModel>(context);
-  // }
-
-  void handlePagination() {
+  Future<List<dynamic>> fetchArticleInfo() async {
     final articleProvider =
         Provider.of<ArticleViewModel>(context, listen: false);
+    List<dynamic> articleList = await articleProvider.getArticleList(page);
+    if (articleList.isNotEmpty) {
+      articleAllList = articleList;
+      //get id
+      articleAllList.forEach((element) {
+        articleIdList.add(element.id!);
+      });
+      return articleAllList;
+    }
+    return [];
+  }
+
+  onLoading(int page) async {
     setState(() {
       isLoading = true;
-      page++;
     });
-    articleProvider.getArticleList(page, true);
-    setState(() {
-      isLoading = false;
-    });
+    final articleProvider =
+        Provider.of<ArticleViewModel>(context, listen: false);
+    List<dynamic> articleList = await articleProvider.getArticleList(page);
+    if (articleList.isNotEmpty) {
+      setState(() {
+        articleAllList.addAll(articleList);
+      });
+
+      articleAllList.forEach((element) {
+        articleIdList.add(element.id!);
+      });
+      setState(() {
+        isLoading = false;
+      });
+      _refreshController.loadComplete();
+    } else {
+      setState(() {
+        isLoading = false;
+      });
+      _refreshController.loadComplete();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final articleProvider = Provider.of<ArticleViewModel>(context);
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        elevation: 0,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 10),
-          child: Image.asset("assets/logo.png"),
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          elevation: 0,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 10),
+            child: Image.asset("assets/logo.png"),
+          ),
         ),
-      ),
-      body: Padding(
-        padding: EdgeInsets.all(10),
-        child: articleProvider.articleList.isNotEmpty
-            ? SmartRefresher(
-                enablePullDown: false,
-                enablePullUp: true,
-                header: const MaterialClassicHeader(),
-                controller: _refreshController,
-                onRefresh: () => {},
-                onLoading: () {
-                  setState(() {
-                    isLoading = true;
-                    page++;
-                  });
-                  articleProvider.getArticleList(page, true).then((_) {
-                    setState(() {
-                      isLoading = false;
-                      articleIdList = articleProvider.articleIdList;
-                    });
+        body: buildArticleList(context, _futureArticleList!));
+  }
 
-                    _refreshController.loadComplete();
-                  });
+  Widget buildArticleList(
+      BuildContext context, Future<List<dynamic>> futureArticleList) {
+    return FutureBuilder<List<dynamic>>(
+      future: futureArticleList,
+      builder: (context, dataSnapshot) {
+        if (dataSnapshot.hasData) {
+          if (dataSnapshot.data!.isEmpty) {
+            return Center(
+              child: Text("Không có bài báo nào"),
+            );
+          } else if (dataSnapshot.data!.isNotEmpty) {
+            return SmartRefresher(
+              enablePullDown: true,
+              enablePullUp: true,
+              header: const MaterialClassicHeader(),
+              controller: _refreshController,
+              onRefresh: () {
+                _refreshController.refreshCompleted();
+              },
+              onLoading: () async {
+                page++;
+                onLoading(page);
+              },
+              footer: CustomFooter(
+                builder: (BuildContext context, LoadStatus? mode) {
+                  if (isLoading) {
+                    return Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  } else {
+                    return Container();
+                  }
                 },
-                footer: CustomFooter(
-                  builder: (BuildContext context, LoadStatus? mode) {
-                    if (isLoading) {
-                      return Center(
-                        child: CircularProgressIndicator(),
-                      );
-                    } else {
-                      return Container();
-                    }
-                  },
-                ),
-                child: ListView.builder(
-                  itemCount: articleProvider.articleList.length,
-                  itemBuilder: (context, index) {
-                    var item = articleProvider.articleList[index];
-
-                    return ArticleItem(
-                        item: item, heroId: 111, articleIdList: articleIdList);
-                  },
-                ),
-              )
-            : shimmerLoading(),
-      ),
+              ),
+              child: ListView.builder(
+                itemCount: articleAllList.length,
+                itemBuilder: (context, index) {
+                  var item = articleAllList[index];
+                  return ArticleItem(
+                      item: item, heroId: 444, articleIdList: articleIdList);
+                },
+              ),
+            );
+          }
+        }
+        return shimmerLoading();
+      },
     );
   }
 

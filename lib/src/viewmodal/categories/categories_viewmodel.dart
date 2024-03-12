@@ -17,8 +17,14 @@ class CategoriesViewModel extends ChangeNotifier {
     return allCategory;
   }
 
-  Future<List<dynamic>> getListByCategoryId(int id) async {
-    String base_url = "/article/get-list-by-categoryId?categoryId=$id";
+  Future<List<dynamic>> getListByCategoryId(int id, bool isParent) async {
+    String base_url = '';
+
+    if (isParent) {
+      base_url = "/article/get-list-by-categoryId?categoryId=$id&type=parent";
+    } else {
+      base_url = "/article/get-list-by-categoryId?categoryId=$id&type=child";
+    }
     var response = await ApiProvider().get(base_url);
     List<Article> articleList =
         response.map<Article>((item) => Article.fromJson(item)).toList();

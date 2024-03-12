@@ -31,8 +31,6 @@ class LoginViewModel extends ChangeNotifier {
     String base_url = "/api/v1/verification/send-code?phoneNumber=$numberphone";
 
     final response = await ApiProvider().get(base_url);
-
-    log(response.toString());
     if (response != null) {
       Map<String, dynamic> responseData = response;
       String jsonString = json.encode(responseData);
@@ -54,9 +52,6 @@ class LoginViewModel extends ChangeNotifier {
       String jsonString = json.encode(responseData);
       Map<String, dynamic> userToken = json.decode(jsonString);
       statusCode = int.parse(userToken['code'].toString());
-
-      log(response.toString());
-      log(statusCode.toString());
     }
     return statusCode;
   }
