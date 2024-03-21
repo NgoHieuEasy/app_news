@@ -34,13 +34,9 @@ class ArticleDetailPage extends StatefulWidget {
 
 class _ArticleDetailPageState extends State<ArticleDetailPage> {
   Map dataMap = {};
-  final player = AudioPlayer();
-  bool isPlaying = true;
-  bool playLoading = false;
-  Duration duration = Duration.zero;
-  Duration position = Duration.zero;
 
   int articleIndex = 0;
+  int chunkIndex = 0;
 
   SpeechToText speechToText = SpeechToText();
   FlutterTts flutterTts = FlutterTts();
@@ -51,9 +47,13 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
   String mp3Main = "";
 
   bool isRender = true;
+  bool isAvailable = false;
+  bool isPlay = false;
 
+  double speeadRead = 0.5;
   List<int> articleIdList = [];
   List<dynamic> articleRenderList = [];
+  List<String> chunks = [];
 
   Future<List<dynamic>>? _futureArticleDetail;
   Future<List<dynamic>>? _futureArticleRelateList;
@@ -65,17 +65,18 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
   ];
 
   List<Map<String, dynamic>> speedList = [
-    {"id": 0, "speed": "x0.5 chậm"},
-    {"id": 1, "speed": "x1 bình thường"},
-    {"id": 2, "speed": "x1.5 nhanh"},
-    {"id": 3, "speed": "x2 rất nhanh"},
+    {"id": 0, "speed": "x0.5 chậm", "value": 0.2},
+    {"id": 1, "speed": "x1 bình thường", "value": 0.5},
+    {"id": 2, "speed": "x1.5 nhanh", "value": 0.7},
+    {"id": 3, "speed": "x2 rất nhanh", "value": 0.9},
   ];
 
   @override
   void initState() {
     if (mounted) {
-      dataMap = widget.dataMap;
       initSpeech();
+      dataMap = widget.dataMap;
+
       speedItems = optionList.map<PopupMenuItem<String>>((e) {
         return PopupMenuItem<String>(
           value: e["text"],
@@ -89,46 +90,11 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
         );
       }).toList();
 
-      player.onPlayerStateChanged.listen((state) {
-        if (mounted) {
-          setState(() {
-            playLoading = false;
-            isPlaying = state == PlayerState.playing;
-          });
-        }
-      });
-      player.onDurationChanged.listen((newDuration) {
-        if (mounted) {
-          setState(() {
-            duration = newDuration;
-          });
-        }
-      });
-
-      player.onPositionChanged.listen((newPosition) {
-        if (mounted) {
-          setState(() {
-            position = newPosition;
-          });
-        }
-      });
-      player.onPlayerComplete.listen((event) {
-        if (articleIndex < articleIdList.length) {
-          articleIndex++;
-          fetchArticleRender(articleIdList[articleIndex]);
-        }
-      });
       articleIdList =
           cutArticleIdList(widget.articleIdList, widget.dataMap['id']);
       loadDataFromApi();
-      // getArticleIdList();
     }
     super.initState();
-  }
-
-  void initSpeech() async {
-    await speechToText.initialize();
-    setState(() {});
   }
 
   loadDataFromApi() {
@@ -138,18 +104,21 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     });
   }
 
+  void initSpeech() async {
+    isAvailable = await speechToText.initialize();
+  }
+
   Future<List<dynamic>> fetchArticleDetailInfo() async {
     final articleProvider =
         Provider.of<ArticleViewModel>(context, listen: false);
     List<dynamic> articleList =
         await articleProvider.getSingleArticle(widget.dataMap['id']);
     if (articleList.isNotEmpty) {
-      mp3Main = "$URL_TAKE_MP3${articleList[0].mp3Url1}";
+      mp3Main = articleList[0].textContent;
       link_Copy = articleList[0].crawlUrl;
       link_share = articleList[0].crawlUrl;
-      playAudio(mp3Main);
       articleRenderList = articleList;
-
+      cutCharacter(mp3Main);
       return articleList;
     }
     return [];
@@ -168,8 +137,6 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
 
   fetchArticleRender(int id) async {
     setState(() {
-      duration = Duration.zero;
-      position = Duration.zero;
       isRender = false;
     });
     final articleProvider =
@@ -178,12 +145,11 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
 
     if (articleList.isNotEmpty) {
       setState(() {
-        mp3Main = "$URL_TAKE_MP3${articleList[0].mp3Url1}";
+        mp3Main = articleList[0].textContent;
         link_Copy = articleList[0].crawlUrl;
         link_share = articleList[0].crawlUrl;
         articleRenderList = articleList;
       });
-      playAudio(mp3Main);
       setState(() {
         isRender = true;
       });
@@ -191,6 +157,49 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
       setState(() {
         isRender = true;
       });
+    }
+  }
+
+  Future<void> speak(String word) async {
+    await flutterTts.setLanguage('vi-VN');
+    await flutterTts
+        .setVoice({"name": "vi-vn-x-vie-network", "locale": "vi-VN"});
+    await flutterTts.setPitch(1.0);
+    await flutterTts.setSpeechRate(speeadRead);
+
+    flutterTts.setCompletionHandler(() {
+      chunkIndex++;
+      if (chunkIndex < chunks.length) {
+        speak(chunks[chunkIndex]);
+      } else {
+        if (articleIndex < articleIdList.length) {
+          articleIndex++;
+          fetchArticleRender(articleIdList[articleIndex]);
+        }
+      }
+    });
+
+    flutterTts.setCancelHandler(() {});
+
+    flutterTts.setProgressHandler((text, start, end, word) {});
+
+    await flutterTts.speak(word);
+  }
+
+  Future<void> cutCharacter(String mp3Main) async {
+    int chunkSize = 3900;
+    mp3Main = mp3Main.trim().toString();
+
+    for (int i = 0; i < mp3Main.length; i += chunkSize) {
+      chunks.add(mp3Main.substring(
+          i, i + chunkSize < mp3Main.length ? i + chunkSize : mp3Main.length));
+    }
+
+    if (isAvailable) {
+      setState(() {
+        isPlay = true;
+      });
+      speak(chunks[chunkIndex]);
     }
   }
 
@@ -201,35 +210,6 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     } else {
       return [];
     }
-  }
-
-  Future<void> playAudio(String mp3) async {
-    if (mounted) {
-      setState(() {
-        playLoading = true;
-      });
-      await player.play(UrlSource(mp3));
-    }
-  }
-
-  Future<void> forward() async {
-    Duration secondsNext = Duration(seconds: 5);
-    Duration? currentPosition = await player.getCurrentPosition();
-    Duration newPosition = currentPosition! + secondsNext;
-
-    player.seek(newPosition);
-
-    await player.resume();
-  }
-
-  Future<void> backward() async {
-    Duration secondsNext = Duration(seconds: 5);
-    Duration? currentPosition = await player.getCurrentPosition();
-    Duration newPosition = currentPosition! - secondsNext;
-
-    player.seek(newPosition);
-
-    await player.resume();
   }
 
   void showPopupMenu(
@@ -307,29 +287,17 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
       items: popupMenuEntries,
     ).then((value) async {
       if (value != null) {
-        int selectedId = value['id'];
-        switch (selectedId) {
-          case 0:
-            player.setPlaybackRate(0.5);
-            break;
-          case 1:
-            player.setPlaybackRate(1);
-            break;
-          case 2:
-            player.setPlaybackRate(1.5);
-            break;
-
-          default:
-            player.setPlaybackRate(2);
-            break;
-        }
+        log(value['value'].toString());
+        setState(() {
+          speeadRead = value['value'];
+        });
+        speak(chunks[chunkIndex]);
       }
     });
   }
 
   @override
   void dispose() {
-    player.dispose();
     flutterTts.stop();
 
     super.dispose();
@@ -503,10 +471,7 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
                           child: Padding(
                             padding: const EdgeInsets.all(10.0),
                             child: Column(
-                              children: [
-                                sliderAudioWidget(mp3Main),
-                                playAudioWidget(),
-                              ],
+                              children: [audioWidget()],
                             ),
                           ),
                         ),
@@ -557,74 +522,35 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     );
   }
 
-  Widget sliderAudioWidget(
-    String mp3Url1,
-  ) {
-    return Slider(
-        min: 0,
-        max: duration.inSeconds.toDouble(),
-        value: position.inSeconds.toDouble(),
-        thumbColor: AppThemePreferences.secondPrimaryColor,
-        activeColor: AppThemePreferences.secondPrimaryColor,
-        inactiveColor: AppThemePreferences.primaryColor,
-        secondaryActiveColor: AppThemePreferences.secondPrimaryColor,
-        onChanged: (value) async {
-          final position = Duration(seconds: value.toInt());
-          await player.seek(position);
-
-          await player.resume();
-        });
-  }
-
-  Widget playAudioWidget() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget audioWidget() {
+    return Card(
+        child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        Text(UtilityMethods.formatTimeClock(position)),
         IconButton(
-          icon: Icon(Icons.fast_rewind),
-          color: Colors.brown,
-          iconSize: 25,
-          onPressed: () {
-            backward();
+          iconSize: 40,
+          icon: Icon(isPlay
+              ? Icons.pause_circle_outline_rounded
+              : Icons.play_circle_outline_sharp),
+          onPressed: () async {
+            if (!isPlay) {
+              cutCharacter(mp3Main);
+              setState(() {
+                isPlay = true;
+              });
+            } else {
+              await flutterTts.pause();
+              setState(() {
+                isPlay = false;
+              });
+            }
           },
         ),
-        CircleAvatar(
-          radius: 25,
-          backgroundColor: Colors.brown,
-          child: playLoading == false
-              ? IconButton(
-                  icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
-                  iconSize: 25,
-                  onPressed: () async {
-                    if (isPlaying) {
-                      await player.pause();
-                    } else {
-                      setState(() {
-                        playLoading = true;
-                      });
-                      await player.play(UrlSource(mp3Main));
-                    }
-                  },
-                )
-              : Center(
-                  child: CircularProgressIndicator(
-                    color: AppThemePreferences.primaryColor,
-                  ),
-                ),
+        Container(
+          height: 30,
+          child: Image.asset('assets/sound_wave_icon.png'),
         ),
-        IconButton(
-          icon: Icon(
-            Icons.fast_forward,
-            color: Colors.brown,
-          ),
-          iconSize: 25,
-          onPressed: () {
-            forward();
-          },
-        ),
-        Text(UtilityMethods.formatTimeClock(duration - position)),
       ],
-    );
+    ));
   }
 }

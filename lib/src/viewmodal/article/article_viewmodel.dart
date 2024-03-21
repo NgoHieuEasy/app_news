@@ -36,36 +36,10 @@ class ArticleViewModel extends ChangeNotifier {
     newArticleList.add(Article.fromJson(response));
 
     if (newArticleList.isNotEmpty) {
-      if (newArticleList[0].mp3Url1 == "") {
-        String base_url_mp3 = "/create_voice";
-        Map<String, dynamic> data = {"article_id": newArticleList[0].id};
-        final response = await ApiProvider().post_voice(base_url_mp3, data);
-
-        if (response.statusCode == 200) {
-          newArticleList[0].mp3Url1 = response.data['data'];
-        } else {
-          log('mp3 call api voice mp3');
-        }
-      }
       return newArticleList;
     }
 
     return [];
-
-    // singleArticleList = newArticleList;
-    // log('tới đây thôi');
-    // if (singleArticleList[0].mp3Url1 == 'null') {
-    //   String base_url = "/create_voice";
-    //   Map<String, dynamic> data = {"article_id": id.toString()};
-    //   var response = await ApiProvider().post_voide(base_url, data);
-
-    //   if (response != null && response.data != null) {
-    //     singleArticleList[0].mp3Url1 = response.data['data'];
-    //   } else {
-    //     log("trường hợp phản hồi không hợp lệ");
-    //   }
-    // }
-    // notifyListeners();
   }
 
   updateSingleArticleList(List<Article> newArticleList) {}
@@ -89,17 +63,6 @@ class ArticleViewModel extends ChangeNotifier {
       return articleList;
     }
     return [];
-
-    // if (isPag) {
-    //   articleList.addAll(
-    //       response.map<Article>((item) => Article.fromJson(item)).toList());
-    // } else {
-    //   articleList =
-    //       response.map<Article>((item) => Article.fromJson(item)).toList();
-    // }
-    // getArticleIdList(articleList);
-
-    // notifyListeners();
   }
 
   Future<List<dynamic>> getRelateArticleList(int id) async {

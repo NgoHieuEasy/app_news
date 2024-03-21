@@ -113,9 +113,6 @@ class _ArticleItemState extends State<ArticleItem> {
                             style: TextStyle(
                                 fontSize: 17, fontWeight: FontWeight.bold),
                           ),
-                          Text(
-                            description,
-                          ),
                           Text("Ngày đăng: $publishedAt")
                         ],
                       ),
