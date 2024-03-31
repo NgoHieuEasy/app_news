@@ -1,23 +1,17 @@
 import 'dart:developer';
 
-import 'package:dio/dio.dart';
-import 'package:fancy_shimmer_image/fancy_shimmer_image.dart';
 import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:read_paper/core/constants/constants.dart';
 import 'package:read_paper/core/files/app_preferences/app_preferences.dart';
-import 'package:read_paper/core/files/generic_methods/utility_methods.dart';
 import 'package:read_paper/core/widgets/article/article_item.dart';
-import 'package:read_paper/core/widgets/shimmer_effect_error_widget.dart';
 import 'package:read_paper/src/viewmodal/article/article_viewmodel.dart';
+import 'package:read_paper/core/helper/TTS.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:speech_to_text/speech_to_text.dart';
-import 'package:flutter_file_downloader/flutter_file_downloader.dart';
 
 class ArticleDetailPage extends StatefulWidget {
   final Map dataMap;
@@ -35,6 +29,10 @@ class ArticleDetailPage extends StatefulWidget {
 class _ArticleDetailPageState extends State<ArticleDetailPage> {
   Map dataMap = {};
 
+  late StateSetter _setStateSpeech;
+
+  double _currentSliderValue = 0.5;
+
   int articleIndex = 0;
   int chunkIndex = 0;
 
@@ -50,13 +48,14 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
   bool isAvailable = false;
   bool isPlay = false;
 
-  double speeadRead = 0.5;
   List<int> articleIdList = [];
   List<dynamic> articleRenderList = [];
   List<String> chunks = [];
 
   Future<List<dynamic>>? _futureArticleDetail;
   Future<List<dynamic>>? _futureArticleRelateList;
+
+  Map<String, String> voiceRead = {"name": "vi-VN-language", "locale": "vi-VN"};
 
   List<Map<String, dynamic>> optionList = [
     {"id": 0, "icon": Icons.share, "text": "Chia sẻ"},
@@ -71,6 +70,19 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     {"id": 3, "speed": "x2 rất nhanh", "value": 0.9},
   ];
 
+  List<Map<String, String>> voiceVNList = [
+    {"key": "vi-VN-language", "locale": "vi-VN", "name": "Giọng đọc 1"},
+    {"key": "vi-vn-x-gft-network", "locale": "vi-VN", "name": "Giọng đọc 2"},
+    {"key": "vi-vn-x-vie-network", "locale": "vi-VN", "name": "Giọng đọc 3"},
+    {"key": "vi-vn-x-vid-local", "locale": "vi-VN", "name": "Giọng đọc 4"},
+    {"key": "vi-vn-x-vic-local", "locale": "vi-VN", "name": "Giọng đọc 5"},
+    {"key": "vi-vn-x-gft-local", "locale": "vi-VN", "name": "Giọng đọc 6"},
+    {"key": "vi-vn-x-vie-local", "locale": "vi-VN", "name": "Giọng đọc 7"},
+    {"key": "vi-vn-x-vif-network", "locale": "vi-VN", "name": "Giọng đọc 8"},
+    {"key": "vi-vn-x-vif-local", "locale": "vi-VN", "name": "Giọng đọc 9"},
+    {"key": "vi-vn-x-vid-network", "locale": "vi-VN", "name": "Giọng đọc 10"},
+    {"key": "vi-vn-x-vic-network", "locale": "vi-VN", "name": "Giọng đọc 11"}
+  ];
   @override
   void initState() {
     if (mounted) {
@@ -153,6 +165,8 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
       setState(() {
         isRender = true;
       });
+
+      cutCharacter(mp3Main);
     } else {
       setState(() {
         isRender = true;
@@ -162,10 +176,9 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
 
   Future<void> speak(String word) async {
     await flutterTts.setLanguage('vi-VN');
-    await flutterTts
-        .setVoice({"name": "vi-vn-x-vie-network", "locale": "vi-VN"});
+    await flutterTts.setVoice(voiceRead);
     await flutterTts.setPitch(1.0);
-    await flutterTts.setSpeechRate(speeadRead);
+    await flutterTts.setSpeechRate(_currentSliderValue);
 
     flutterTts.setCompletionHandler(() {
       chunkIndex++;
@@ -181,7 +194,9 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
 
     flutterTts.setCancelHandler(() {});
 
-    flutterTts.setProgressHandler((text, start, end, word) {});
+    flutterTts.setProgressHandler((text, start, end, word) {
+      log('dang chay');
+    });
 
     await flutterTts.speak(word);
   }
@@ -227,24 +242,13 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
         if (value == "Chia sẻ") {
           Share.share(optionMap['share']);
         } else if (value == "Tải xuống") {
-          DateTime now = DateTime.now();
-          Dio dio = Dio();
-          String fileName = "${now.toString()}.mp3}";
-
-          String path = await _getFilePath(fileName);
-          await dio.download(
-            optionMap['download'],
-            path,
-            onReceiveProgress: (recivedBytes, totalBytes) {
-              print(totalBytes);
-            },
-            deleteOnError: true,
-          ).then((_) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              backgroundColor: AppThemePreferences.primaryColor,
-              content: const Text("Download thành công"),
-            ));
-          });
+          // String text = "Hello, how are you?";
+          // String? filePath = await TTSHelper.saveTextToSpeech(text);
+          // if (filePath != null) {
+          //   log('Audio file saved at: $filePath');
+          // } else {
+          //   log('Failed to save audio file');
+          // }
         } else {
           if (link_Copy != '') {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -259,41 +263,65 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     });
   }
 
-  Future<String> _getFilePath(String filename) async {
-    final dir = await getApplicationDocumentsDirectory();
-    return "${dir.path}/$filename";
-  }
-
-  void showSpeed(
-    BuildContext context,
-    TapDownDetails tapDownDetails,
-  ) {
-    List<PopupMenuEntry<Map<String, dynamic>>> popupMenuEntries =
-        speedList.map((voice) {
-      return PopupMenuItem<Map<String, dynamic>>(
-        value: voice,
-        child: Text(voice['speed']),
-      );
-    }).toList();
-
-    showMenu<Map<String, dynamic>>(
+  void showSettings({
+    required BuildContext context,
+  }) {
+    showDialog(
       context: context,
-      position: RelativeRect.fromLTRB(
-        tapDownDetails.globalPosition.dx,
-        tapDownDetails.globalPosition.dy,
-        tapDownDetails.globalPosition.dx + 100,
-        tapDownDetails.globalPosition.dy + 100,
-      ),
-      items: popupMenuEntries,
-    ).then((value) async {
-      if (value != null) {
-        log(value['value'].toString());
-        setState(() {
-          speeadRead = value['value'];
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(builder: (context, setState) {
+          _setStateSpeech = setState;
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(10.0))),
+            insetPadding: EdgeInsets.all(10),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Cài đặt'),
+                InkWell(
+                    onTap: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: Icon(Icons.close))
+              ],
+            ),
+            content: Container(
+                width: double.maxFinite,
+                height: 400,
+                child: ListView(children: [
+                  Text('Cài đặt âm thanh'),
+                  sliderbar(),
+                  Text('Cài đặt giọng nói'),
+                  Wrap(
+                    children: voiceVNList.map<Widget>((item) {
+                      return Card(
+                        child: GestureDetector(
+                          onTap: () {
+                            Map<String, String> voiceName = {
+                              "name": item['key']!,
+                              "locale": item['locale']!
+                            };
+
+                            _setStateSpeech(() {
+                              voiceRead = voiceName;
+                            });
+                            speak(chunks[chunkIndex]);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(item['name']!),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  )
+                ])),
+          );
         });
-        speak(chunks[chunkIndex]);
-      }
-    });
+      },
+    );
   }
 
   @override
@@ -318,9 +346,6 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
             ),
             onPressed: () {
               Navigator.of(context).pop();
-
-              // articleProvider.clearArray();
-              // Navigator.of(context).popUntil((route) => route.isFirst);
             }),
         elevation: 0,
         actions: [
@@ -343,10 +368,10 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
               ? Padding(
                   padding: const EdgeInsets.only(right: 10),
                   child: GestureDetector(
-                    onTapDown: (TapDownDetails tapDownDetails) async {
-                      showSpeed(context, tapDownDetails);
+                    onTap: () {
+                      showSettings(context: context);
                     },
-                    child: Icon(Icons.speed_sharp),
+                    child: Icon(Icons.settings),
                   ),
                 )
               : Container(),
@@ -441,6 +466,7 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
                                   );
                                 }).toList(),
                               ),
+                              sliderbar(),
                               Container(
                                 width: MediaQuery.of(context).size.width,
                                 child: Column(
@@ -522,35 +548,89 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     );
   }
 
-  Widget audioWidget() {
-    return Card(
-        child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        IconButton(
-          iconSize: 40,
-          icon: Icon(isPlay
-              ? Icons.pause_circle_outline_rounded
-              : Icons.play_circle_outline_sharp),
-          onPressed: () async {
-            if (!isPlay) {
-              cutCharacter(mp3Main);
-              setState(() {
-                isPlay = true;
-              });
-            } else {
-              await flutterTts.pause();
-              setState(() {
-                isPlay = false;
-              });
-            }
+  Widget sliderbar() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        // Text(
+        //   'Value: $_currentSliderValue',
+        //   style: TextStyle(fontSize: 20),
+        // ),
+        Slider(
+          value: _currentSliderValue,
+          min: 0.1,
+          max: 0.9,
+          divisions: 100,
+          onChanged: (double value) {},
+          onChangeEnd: (double value) {
+            _setStateSpeech(() {
+              _currentSliderValue = value;
+            });
+            speak(chunks[chunkIndex]);
           },
         ),
-        Container(
-          height: 30,
-          child: Image.asset('assets/sound_wave_icon.png'),
-        ),
       ],
-    ));
+    );
+  }
+
+  Widget audioWidget() {
+    return Card(
+        child: Column(children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          Expanded(
+            child: Container(
+              height: 30,
+              child: Image.asset('assets/sound_wave_icon.png'),
+            ),
+          ),
+        ],
+      ),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          IconButton(
+            onPressed: () {
+              if (articleIndex >= 0) {
+                articleIndex--;
+                chunks = [];
+                fetchArticleRender(articleIdList[articleIndex]);
+              }
+            },
+            icon: Icon(Icons.keyboard_double_arrow_left),
+          ),
+          IconButton(
+            iconSize: 40,
+            icon: Icon(isPlay
+                ? Icons.pause_circle_outline_rounded
+                : Icons.play_circle_outline_sharp),
+            onPressed: () async {
+              if (!isPlay) {
+                cutCharacter(mp3Main);
+                setState(() {
+                  isPlay = true;
+                });
+              } else {
+                await flutterTts.pause();
+                setState(() {
+                  isPlay = false;
+                });
+              }
+            },
+          ),
+          IconButton(
+            onPressed: () {
+              if (articleIndex < articleIdList.length) {
+                articleIndex++;
+                chunks = [];
+                fetchArticleRender(articleIdList[articleIndex]);
+              }
+            },
+            icon: Icon(Icons.keyboard_double_arrow_right),
+          )
+        ],
+      ),
+    ]));
   }
 }
