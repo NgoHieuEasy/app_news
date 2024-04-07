@@ -4,12 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:read_paper/core/files/app_preferences/app_preferences.dart';
 import 'package:read_paper/core/widgets/article/article_item.dart';
 import 'package:read_paper/src/viewmodal/article/article_viewmodel.dart';
-import 'package:read_paper/core/helper/TTS.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
@@ -47,6 +45,7 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
   bool isRender = true;
   bool isAvailable = false;
   bool isPlay = false;
+  late bool isTalkBackActive;
 
   List<int> articleIdList = [];
   List<dynamic> articleRenderList = [];
@@ -101,10 +100,10 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
           ),
         );
       }).toList();
-
       articleIdList =
           cutArticleIdList(widget.articleIdList, widget.dataMap['id']);
       loadDataFromApi();
+      MyTtsManager();
     }
     super.initState();
   }
@@ -119,6 +118,50 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
   void initSpeech() async {
     isAvailable = await speechToText.initialize();
   }
+
+  //check talkaback
+  MyTtsManager() {
+    initTalkBackListener();
+  }
+
+  Future<void> initTalkBackListener() async {
+    MethodChannel talkBackChannel =
+        MethodChannel('com.example.read_paper/talkback_channel');
+    try {
+      final bool talkBackActive =
+          await talkBackChannel.invokeMethod('isTalkBackActive');
+      updateTalkBackStatus(talkBackActive);
+      talkBackChannel.setMethodCallHandler((call) async {
+        if (call.method == 'onTalkBackStateChanged') {
+          final bool talkBackActive = call.arguments['isTalkBackActive'];
+
+          updateTalkBackStatus(talkBackActive);
+        }
+      });
+    } on PlatformException catch (e) {
+      print("Failed to check TalkBack status: '${e.message}'.");
+    }
+  }
+
+  void updateTalkBackStatus(bool isActive) {
+    if (isActive) {
+      log('vo ative');
+      pauseTts();
+    } else {
+      log('vo not active talkback');
+      if (chunks != [] && chunks.length > 0) {
+        speak(chunks[chunkIndex]);
+      }
+    }
+  }
+
+  Future<void> pauseTts() async {
+    await flutterTts.stop();
+
+    log('pause:::::');
+    // cutCharacter(mp3Main);
+  }
+  // ===========================
 
   Future<List<dynamic>> fetchArticleDetailInfo() async {
     final articleProvider =
@@ -174,6 +217,7 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     }
   }
 
+  //new
   Future<void> speak(String word) async {
     await flutterTts.setLanguage('vi-VN');
     await flutterTts.setVoice(voiceRead);
@@ -192,14 +236,51 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
       }
     });
 
-    flutterTts.setCancelHandler(() {});
+    flutterTts.setCancelHandler(() {
+      log('voooooo dayyyyyyyy');
+      // speak()
+      cutCharacter(mp3Main);
+      setState(() {
+        isPlay = true;
+      });
+    });
 
     flutterTts.setProgressHandler((text, start, end, word) {
       log('dang chay');
+      // speak(chunks[chunkIndex]);
     });
 
     await flutterTts.speak(word);
   }
+
+  //old
+
+  // Future<void> speak(String word) async {
+  //   await flutterTts.setLanguage('vi-VN');
+  //   await flutterTts.setVoice(voiceRead);
+  //   await flutterTts.setPitch(1.0);
+  //   await flutterTts.setSpeechRate(_currentSliderValue);
+
+  //   flutterTts.setCompletionHandler(() {
+  //     chunkIndex++;
+  //     if (chunkIndex < chunks.length) {
+  //       speak(chunks[chunkIndex]);
+  //     } else {
+  //       if (articleIndex < articleIdList.length) {
+  //         articleIndex++;
+  //         fetchArticleRender(articleIdList[articleIndex]);
+  //       }
+  //     }
+  //   });
+
+  //   flutterTts.setCancelHandler(() {});
+
+  //   flutterTts.setProgressHandler((text, start, end, word) {
+  //     log('dang chay');
+  //   });
+
+  //   await flutterTts.speak(word);
+  // }
 
   Future<void> cutCharacter(String mp3Main) async {
     int chunkSize = 3900;
@@ -211,10 +292,12 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
     }
 
     if (isAvailable) {
-      setState(() {
-        isPlay = true;
-      });
-      speak(chunks[chunkIndex]);
+      if (mounted) {
+        setState(() {
+          isPlay = true;
+        });
+        speak(chunks[chunkIndex]);
+      }
     }
   }
 
